@@ -2,6 +2,7 @@ Spring Boot Speech-to-Text Application
 
 I've created a complete Spring Boot application for speech-to-text conversion using Google's Cloud Speech API. This application follows standard Spring Boot architecture patterns with clear separation of concerns:
 Project Structure
+
 ├── pom.xml
 ├── src
     ├── main
