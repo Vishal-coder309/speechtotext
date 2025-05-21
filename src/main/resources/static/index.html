@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text Converter</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        .result-area {
+            min-height: 200px;
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="mb-4">Speech-to-Text Converter</h1>
+
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="local-tab" data-bs-toggle="tab" data-bs-target="#local" type="button" role="tab" aria-controls="local" aria-selected="true">Upload Audio File</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="remote-tab" data-bs-toggle="tab" data-bs-target="#remote" type="button" role="tab" aria-controls="remote" aria-selected="false">Remote Audio File</button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-4" id="myTabContent">
+        <!-- Local File Tab -->
+        <div class="tab-pane fade show active" id="local" role="tabpanel" aria-labelledby="local-tab">
+            <form id="localForm">
+                <div class="mb-3">
+                    <label for="audioFile" class="form-label">Audio File</label>
+                    <input class="form-control" type="file" id="audioFile" accept="audio/*" required>
+                </div>
+                <div class="mb-3">
+                    <label for="languageCode" class="form-label">Language Code</label>
+                    <input type="text" class="form-control" id="languageCode" value="en-US" required>
+                    <div class="form-text">e.g., en-US, fr-FR, es-ES</div>
+                </div>
+                <div class="mb-3">
+                    <label for="sampleRateHertz" class="form-label">Sample Rate (Hz)</label>
+                    <input type="number" class="form-control" id="sampleRateHertz" value="16000" required>
+                    <div class="form-text">Common values: 8000, 16000, 22050, 44100</div>
+                </div>
+                <div class="mb-3">
+                    <label for="audioFormat" class="form-label">Audio Format</label>
+                    <select class="form-select" id="audioFormat" required>
+                        <option value="LINEAR16">LINEAR16 (WAV)</option>
+                        <option value="FLAC">FLAC</option>
+                        <option value="MP3">MP3</option>
+                        <option value="OGG_OPUS">OGG_OPUS</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Transcribe</button>
+            </form>
+        </div>
+
+        <!-- Remote File Tab -->
+        <div class="tab-pane fade" id="remote" role="tabpanel" aria-labelledby="remote-tab">
+            <form id="remoteForm">
+                <div class="mb-3">
+                    <label for="gcsUri" class="form-label">Google Cloud Storage URI</label>
+                    <input type="text" class="form-control" id="gcsUri" required>
+                    <div class="form-text">e.g., gs://your-bucket/audio.flac</div>
+                </div>
+                <div class="mb-3">
+                    <label for="remoteLanguageCode" class="form-label">Language Code</label>
+                    <input type="text" class="form-control" id="remoteLanguageCode" value="en-US" required>
+                    <div class="form-text">e.g., en-US, fr-FR, es-ES</div>
+                </div>
+                <div class="mb-3">
+                    <label for="remoteSampleRateHertz" class="form-label">Sample Rate (Hz)</label>
+                    <input type="number" class="form-control" id="remoteSampleRateHertz" value="16000" required>
+                    <div class="form-text">Common values: 8000, 16000, 22050, 44100</div>
+                </div>
+                <div class="mb-3">
+                    <label for="remoteAudioFormat" class="form-label">Audio Format</label>
+                    <select class="form-select" id="remoteAudioFormat" required>
+                        <option value="LINEAR16">LINEAR16 (WAV)</option>
+                        <option value="FLAC">FLAC</option>
+                        <option value="MP3">MP3</option>
+                        <option value="OGG_OPUS">OGG_OPUS</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Transcribe</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="loading text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Transcribing your audio file. This may take a moment...</p>
+    </div>
+
+    <div class="result-area bg-light" id="resultArea">
+        <p class="text-muted">Transcription results will appear here...</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.getElementById('localForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        transcribeLocalFile();
+    });
+
+    document.getElementById('remoteForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        transcribeRemoteFile();
+    });
+
+    function transcribeLocalFile() {
+        const file = document.getElementById('audioFile').files[0];
+        if (!file) {
+            alert('Please select an audio file');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('languageCode', document.getElementById('languageCode').value);
+        formData.append('sampleRateHertz', document.getElementById('sampleRateHertz').value);
+        formData.append('audioFormat', document.getElementById('audioFormat').value);
+
+        showLoading();
+
+        fetch('/speech-to-text/api/speech/transcribe', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            displayResult(data);
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            document.getElementById('resultArea').innerHTML =
+                `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        });
+    }
+
+    function transcribeRemoteFile() {
+        const requestData = {
+            gcsUri: document.getElementById('gcsUri').value,
+            languageCode: document.getElementById('remoteLanguageCode').value,
+            sampleRateHertz: parseInt(document.getElementById('remoteSampleRateHertz').value),
+            audioFormat: document.getElementById('remoteAudioFormat').value
+        };
+
+        showLoading();
+
+        fetch('/speech-to-text/api/speech/transcribe/remote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            displayResult(data);
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            document.getElementById('resultArea').innerHTML =
+                `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        });
+    }
+
+    function displayResult(data) {
+        const resultArea = document.getElementById('resultArea');
+
+        if (data.status === 'SUCCESS') {
+            resultArea.innerHTML = `
+                <h3 class="mb-3">Transcription Result</h3>
+                <div class="mb-3">
+                    <p>${data.transcription || 'No transcription available'}</p>
+                </div>
+                <div class="text-muted small">
+                    <p>Processing time: ${data.processingTimeMs}ms</p>
+                </div>
+            `;
+        } else {
+            resultArea.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4 class="alert-heading">Error</h4>
+                    <p>${data.errorMessage || 'An unknown error occurred'}</p>
+                </div>
+            `;
+        }
+    }
+
+    function showLoading() {
+        document.querySelector('.loading').style.display = 'block';
+        document.getElementById('resultArea').innerHTML =
+            '<p class="text-muted">Processing...</p>';
+    }
+
+    function hideLoading() {
+        document.querySelector('.loading').style.display = 'none';
+    }
+</script>
+</body>
+</html>
